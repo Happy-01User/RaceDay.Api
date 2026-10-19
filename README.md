@@ -49,3 +49,9 @@ Part 2 is the implementation of the RaceDay RESTful API. It includes authenticat
 - Swagger / OpenAPI with XML comments
 - xUnit with in-memory database
 - GitHub Actions
+
+###ci Screenshot
+<img width="916" height="434" alt="prog screnshot readme" src="https://github.com/user-attachments/assets/997f49e3-9bae-42ba-ae8e-daf4c0adac3a" />
+
+### youtube video
+https://youtu.be/rb6EcvhhOjg

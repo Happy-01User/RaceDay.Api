@@ -1,0 +1,52 @@
+﻿@model RaceDay.Contracts.EventDto
+@{
+    ViewData["Title"] = "Event Details";
+    var categories = ViewBag.Categories as List<RaceDay.Contracts.CategoryDto>;
+}
+
+<h2>@Model.Name</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<p><strong>Date:</strong> @Model.EventDate.ToString("dd MMM yyyy")</p>
+<p><strong>Location:</strong> @Model.Location</p>
+<p><strong>Distance:</strong> @Model.DistanceKm km</p>
+<p><strong>Type:</strong> @Model.EventType</p>
+<p><strong>Description:</strong> @Model.Description</p>
+<p><strong>Organiser:</strong> @Model.OrganiserName</p>
+
+<hr />
+
+<h3>Enrol in this Event</h3>
+
+@if (categories == null || !categories.Any())
+{
+    <p>No categories available for this event yet.</p>
+}
+else
+{
+    <form asp-action="Enrol" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="eventId" value="@Model.EventId" />
+
+        <div class="mb-3">
+            <label class="form-label">Select Category</label>
+            <select name="categoryId" class="form-control">
+                @foreach (var c in categories)
+                {
+                    <option value="@c.CategoryId">@c.Name - R@c.EntryFee</option>
+                }
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-success">Enrol Now</button>
+        <a asp-action="Index" class="btn btn-secondary">Back to Browse</a>
+    </form>
+}

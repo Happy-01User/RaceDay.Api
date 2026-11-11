@@ -1,17 +1,14 @@
-﻿
-
-
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using RaceDay.Api.Data;
-using RaceDay.Api.Helpers;
 using RaceDay.Api.Models;
-using RaceDay.Contracts;
+using RaceDay.Api.Services;
+using RaceDay.Api.Data;
+using RaceDay.Contracts; // Ensure your DTOs are in this namespace
 
 namespace RaceDay.Api.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class EventsController : ControllerBase
     {
         private readonly RaceDayDbContext _context;
@@ -21,100 +18,33 @@ namespace RaceDay.Api.Controllers
             _context = context;
         }
 
-        // ---------- Helper: map Event -> EventDto ----------
-        private static EventDto ToDto(Event e)
-        {
-            return new EventDto
-            {
-                EventId = e.EventId,
-                Name = e.Name,
-                Description = e.Description,
-                EventDate = e.EventDate,
-                Location = e.Location,
-                DistanceKm = e.DistanceKm,
-                EventType = e.EventType,
-                OrganiserId = e.OrganiserId,
-                OrganiserName = e.Organiser != null
-                    ? $"{e.Organiser.FirstName} {e.Organiser.LastName}"
-                    : string.Empty
-            };
-        }
-
-        // =========================================================
-        // GET /api/events  —  Both roles can view all events
-        // =========================================================
+        // GET: api/events
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetEvents()
         {
-            // Must be logged in
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
-
-            var events = await _context.Events
-                .Include(e => e.Organiser)
-                .Select(e => ToDto(e))
-                .ToListAsync();
-
+            var events = await _context.Events.ToListAsync();
             return Ok(events);
         }
 
-        // =========================================================
-        // GET /api/events/mine  —  Organiser only (their own events)
-        // =========================================================
+        // GET: api/events/mine
         [HttpGet("mine")]
-        public async Task<IActionResult> GetMine()
+        public async Task<IActionResult> GetMyEvents()
         {
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
+            var organiserId = HttpContext.Session.GetInt32("UserId");
+            if (organiserId == null) return Unauthorized();
 
-            if (!SessionHelper.HasRole(HttpContext, "Organiser"))
-                return StatusCode(403, new { message = "Only Organisers can view their events." });
-
-            var organiserId = SessionHelper.GetUserId(HttpContext)!.Value;
-
-            var events = await _context.Events
-                .Where(e => e.OrganiserId == organiserId)
-                .Include(e => e.Organiser)
-                .Select(e => ToDto(e))
-                .ToListAsync();
-
+            var events = await _context.Events.Where(e => e.OrganiserId == organiserId).ToListAsync();
             return Ok(events);
         }
 
-        // =========================================================
-        // GET /api/events/{id}  —  Both roles can view one event
-        // =========================================================
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
-
-            var evt = await _context.Events
-                .Include(e => e.Organiser)
-                .FirstOrDefaultAsync(e => e.EventId == id);
-
-            if (evt == null)
-                return NotFound(new { message = "Event not found." });
-
-            return Ok(ToDto(evt));
-        }
-
-        // =========================================================
-        // POST /api/events  —  Organiser only
-        // =========================================================
+        // POST: api/events
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateEventRequest request)
+        public async Task<IActionResult> CreateEvent([FromBody] CreateEventRequest request)
         {
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
+            var organiserId = HttpContext.Session.GetInt32("UserId");
+            if (organiserId == null) return Unauthorized();
 
-            if (!SessionHelper.HasRole(HttpContext, "Organiser"))
-                return StatusCode(403, new { message = "Only Organisers can create events." });
-
-            var organiserId = SessionHelper.GetUserId(HttpContext)!.Value;
-
-            var evt = new Event
+            var newEvent = new Event
             {
                 Name = request.Name,
                 Description = request.Description,
@@ -122,82 +52,27 @@ namespace RaceDay.Api.Controllers
                 Location = request.Location,
                 DistanceKm = request.DistanceKm,
                 EventType = request.EventType,
-                OrganiserId = organiserId
+                OrganiserId = organiserId.Value
             };
 
-            _context.Events.Add(evt);
+            _context.Events.Add(newEvent);
             await _context.SaveChangesAsync();
 
-            // Reload with Organiser included for the DTO
-            await _context.Entry(evt).Reference(e => e.Organiser).LoadAsync();
-
-            return Ok(ToDto(evt));
+            return Ok(newEvent); // Return the created event so MVC gets the EventId
         }
 
-        // =========================================================
-        // PUT /api/events/{id}  —  Organiser who owns the event
-        // =========================================================
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateEventRequest request)
+        // POST: api/events/{id}/banner
+        [HttpPost("{id}/banner")]
+        public async Task<IActionResult> UploadBanner(int id, IFormFile file, [FromServices] BlobStorageService blobStorage)
         {
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
+            var eventItem = await _context.Events.FindAsync(id);
+            if (eventItem == null) return NotFound();
 
-            if (!SessionHelper.HasRole(HttpContext, "Organiser"))
-                return StatusCode(403, new { message = "Only Organisers can update events." });
-
-            var organiserId = SessionHelper.GetUserId(HttpContext)!.Value;
-
-            var evt = await _context.Events
-                .Include(e => e.Organiser)
-                .FirstOrDefaultAsync(e => e.EventId == id);
-
-            if (evt == null)
-                return NotFound(new { message = "Event not found." });
-
-            // Ownership check
-            if (evt.OrganiserId != organiserId)
-                return StatusCode(403, new { message = "You can only update your own events." });
-
-            evt.Name = request.Name;
-            evt.Description = request.Description;
-            evt.EventDate = request.EventDate;
-            evt.Location = request.Location;
-            evt.DistanceKm = request.DistanceKm;
-            evt.EventType = request.EventType;
-
+            string url = await blobStorage.UploadAsync(file, "event-banners");
+            eventItem.BannerImageUrl = url;
             await _context.SaveChangesAsync();
 
-            return Ok(ToDto(evt));
-        }
-
-        // =========================================================
-        // DELETE /api/events/{id}  —  Organiser who owns the event
-        // =========================================================
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (!SessionHelper.IsLoggedIn(HttpContext))
-                return Unauthorized(new { message = "Please log in first." });
-
-            if (!SessionHelper.HasRole(HttpContext, "Organiser"))
-                return StatusCode(403, new { message = "Only Organisers can delete events." });
-
-            var organiserId = SessionHelper.GetUserId(HttpContext)!.Value;
-
-            var evt = await _context.Events
-                .FirstOrDefaultAsync(e => e.EventId == id);
-
-            if (evt == null)
-                return NotFound(new { message = "Event not found." });
-
-            if (evt.OrganiserId != organiserId)
-                return StatusCode(403, new { message = "You can only delete your own events." });
-
-            _context.Events.Remove(evt);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Event deleted successfully." });
+            return Ok(new { imageUrl = url });
         }
     }
 }

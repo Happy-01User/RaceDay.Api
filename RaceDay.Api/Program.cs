@@ -6,7 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services
 builder.Services.AddControllers();
+builder.Services.AddScoped<AuthService>();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
 
 // ---------- Swagger with XML comments ----------
 builder.Services.AddSwaggerGen(options =>
@@ -23,8 +25,9 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<RaceDayDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Services
+// Services - THIS IS THE FIX, IT MUST BE HERE
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<BlobStorageService>();
 
 // Session
 builder.Services.AddDistributedMemoryCache();
@@ -47,6 +50,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseSession();
+app.UseAuthentication(); // <-- ADDED, was missing
 app.UseAuthorization();
 app.MapControllers();
 

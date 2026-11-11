@@ -1,0 +1,52 @@
+﻿@model List<RaceDay.Contracts.EventDto>
+@{
+    ViewData["Title"] = "Browse Events";
+}
+
+<h2>Browse Events</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (!Model.Any())
+{
+    <p>No events available yet. Check back soon!</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Date</th>
+                <th>Location</th>
+                <th>Distance</th>
+                <th>Type</th>
+                <th>Organiser</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in Model)
+            {
+                <tr>
+                    <td>@e.Name</td>
+                    <td>@e.EventDate.ToString("dd MMM yyyy")</td>
+                    <td>@e.Location</td>
+                    <td>@e.DistanceKm km</td>
+                    <td>@e.EventType</td>
+                    <td>@e.OrganiserName</td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@e.EventId" class="btn btn-sm btn-info">View & Join</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

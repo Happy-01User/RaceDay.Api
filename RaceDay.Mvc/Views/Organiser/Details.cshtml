@@ -1,0 +1,56 @@
+﻿@model List<RaceDay.Contracts.EnrolmentDto>
+@{
+    ViewData["Title"] = "Event Details";
+    var evt = ViewBag.Event as RaceDay.Contracts.EventDto;
+}
+
+@if (evt == null)
+{
+    <p>Event not found.</p>
+}
+else
+{
+    <h2>@evt.Name</h2>
+    <p><strong>Date:</strong> @evt.EventDate.ToString("dd MMM yyyy")</p>
+    <p><strong>Location:</strong> @evt.Location</p>
+    <p><strong>Distance:</strong> @evt.DistanceKm km</p>
+    <p><strong>Type:</strong> @evt.EventType</p>
+    <p><strong>Description:</strong> @evt.Description</p>
+    <p><strong>Organiser:</strong> @evt.OrganiserName</p>
+
+    <p>
+        <a asp-action="Edit" asp-route-id="@evt.EventId" class="btn btn-warning">Edit</a>
+        <a asp-action="Index" class="btn btn-secondary">Back to My Events</a>
+    </p>
+
+    <h3 class="mt-4">Enrolments (@Model.Count)</h3>
+
+    @if (!Model.Any())
+    {
+        <p>No one has enrolled yet.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Participant</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Enrolled On</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model)
+                {
+                    <tr>
+                        <td>@e.ParticipantName</td>
+                        <td>@e.CategoryName</td>
+                        <td>@e.Status</td>
+                        <td>@e.EnrolledOn.ToString("dd MMM yyyy")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}

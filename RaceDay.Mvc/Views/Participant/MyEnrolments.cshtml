@@ -1,0 +1,52 @@
+﻿@model List<RaceDay.Contracts.EnrolmentDto>
+@{
+    ViewData["Title"] = "My Enrolments";
+}
+
+<h2>My Enrolments</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (!Model.Any())
+{
+    <p>You have not enrolled in any events yet.</p>
+    <p><a asp-action="Index" class="btn btn-primary">Browse Events</a></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Enrolled On</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in Model)
+            {
+                <tr>
+                    <td>@e.EventName</td>
+                    <td>@e.CategoryName</td>
+                    <td>@e.Status</td>
+                    <td>@e.EnrolledOn.ToString("dd MMM yyyy")</td>
+                    <td>
+                        <form asp-action="CancelEnrolment" asp-route-id="@e.EnrolmentId" method="post" style="display:inline" onsubmit="return confirm('Cancel this enrolment?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
